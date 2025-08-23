@@ -18,7 +18,7 @@ There is also a continually running TF-lite micro hand recognition model running
   <img src="https://github.com/user-attachments/assets/cd95b6cb-7dfd-4ab7-9b3d-a87f6c2d5348" width=32% height=50%>
 </p>
 
-
+<img width="2160" height="1036" alt="gestures" src="https://github.com/user-attachments/assets/84c0f8e4-81fd-42f3-84be-732fe59ae8c4" />
 
 ## Hardware
 - [Board](https://wiki.seeedstudio.com/XIAO_BLE/): Seeed Studio XIAO nRF52840 Sense
