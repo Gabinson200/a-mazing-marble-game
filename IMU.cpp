@@ -57,8 +57,26 @@ bool IMU::read() {
     rollAvg = rollSum / numSamples;
     pitchAvg = pitchSum / numSamples;
     
-    Serial.print("Roll: "); Serial.print(rollAvg, 1);
-    Serial.print(", Pitch: "); Serial.println(pitchAvg, 1);
+    //Serial.print("Roll: "); Serial.print(rollAvg, 1);
+    //Serial.print(", Pitch: "); Serial.println(pitchAvg, 1);
 
+    return true;
+}
+
+// IMU.cpp  (append near the end)
+bool IMU::readAccel(float& ax, float& ay, float& az) {
+    ax = myIMU.readFloatAccelX();
+    ay = myIMU.readFloatAccelY();
+    az = myIMU.readFloatAccelZ();
+    return true;
+}
+
+bool IMU::readAll(float& ax, float& ay, float& az, float& gx, float& gy, float& gz) {
+    ax = myIMU.readFloatAccelX();
+    ay = myIMU.readFloatAccelY();
+    az = myIMU.readFloatAccelZ();
+    gx = myIMU.readFloatGyroX();
+    gy = myIMU.readFloatGyroY();
+    gz = myIMU.readFloatGyroZ();
     return true;
 }

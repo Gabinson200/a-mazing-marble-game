@@ -15,13 +15,13 @@ public:
     MazeClock(int rings, int spacing);
   
     // Override the draw function 
-    virtual void draw(lv_obj_t* parent, bool animate) override;
+    void draw(lv_obj_t* parent, bool animate) override;
 
     // Gets time from RTC and 
     /**
      * @brief Gets time from RTC and moves arcs on the side of the maze to the right position
      */
-    virtual void updateTime() override;
+    void updateTime();
 private:
     lv_obj_t* hour_arc;
     lv_obj_t* minute_arc;

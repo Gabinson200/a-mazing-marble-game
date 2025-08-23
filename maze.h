@@ -46,7 +46,7 @@ public:
 
     // updates RTC time for maze clock, might move to maze clock class as we will probaby never have 
     // a rectangular clock maze
-    virtual void updateTime() {}
+    virtual void updateTime() {}; // just keep it no-op for now
 };
 
 #endif // MAZE_H

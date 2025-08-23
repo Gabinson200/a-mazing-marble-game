@@ -30,6 +30,16 @@ public:
      */
     void getRollAndPitch(float& roll, float& pitch) const;
 
+    /**
+     * @brief Read raw accelerometer (g) into ax, ay, az. Returns true if read ok.
+     */
+    bool readAccel(float& ax, float& ay, float& az);
+
+    /**
+     * @brief Read raw accel + gyro (g and dps).
+     */
+    bool readAll(float& ax, float& ay, float& az, float& gx, float& gy, float& gz);
+
 private:
     LSM6DS3 myIMU;
     const float turnThreshold;
