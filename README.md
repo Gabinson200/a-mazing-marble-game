@@ -7,8 +7,10 @@ can generate infinite amount of maze configurations for unlimited fun.
 # Gameplay
 Rotate the board and round screen around to control the ball and guide it along the maze until the exit is reached.
 Once the exit is reached a new maze will be generated.
-Please feel free to play around with the types and sizes of the mazes which will impact the difficulty of the maze. 
-You can also toggle if you want to animate or instantly generate the maze with the `animate` parameter of the maze `draw` function. 
+There is also a continually running TF-lite micro hand recognition model running in the background that can detect 3 1.5 second long gestures:
+- "bow": Cycles through different "difficulties", chaning the number of rows / columns or rings / spokes of the maze.
+- "circle": Cycles through the 3 different maze types.
+- "sleep": currently toggles the maze drawing animation but might be changed later to put the device into sleep mode.
 
 <p float="top">
   <img src="https://github.com/user-attachments/assets/ff8069d7-2971-4164-a0ce-230ea81355b2" width=32% height=50%>
