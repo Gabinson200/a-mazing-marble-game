@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <lvgl.h>
 #include "lv_xiao_round_screen.h"
+#include "NRFSleep.h"
 #include "IMU.h"
 #include "RectangularMaze.h"
 #include "CircularMaze.h"
@@ -16,6 +17,13 @@
 // LVGL Draw Buffer
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t buf[SCREEN_WIDTH * 10];
+
+// -----------------------------------------------------------------------------
+// Sleep confirmation UI
+// -----------------------------------------------------------------------------
+
+static bool sleepPromptVisible = false;
+static lv_obj_t* sleepPrompt = nullptr;
 
 // RTC
 I2C_BM8563 rtc(I2C_BM8563_DEFAULT_ADDRESS, Wire);
@@ -133,7 +141,154 @@ static void regenerateCurrentMaze() {
     ball = new Ball(screen, spawn.x, spawn.y, /*radius=*/5.0f);
 }
 
+// -----------------------------------------------------------------------------
+// Sleep confirmation UI
+// -----------------------------------------------------------------------------
+
+static void closeSleepPrompt()
+{
+    if (sleepPrompt)
+    {
+        lv_obj_del(sleepPrompt);
+        sleepPrompt = nullptr;
+    }
+
+    sleepPromptVisible = false;
+}
+
+
+static void enterDeepSleep()
+{
+    Serial.println("[Sleep] Preparing for SYSTEMOFF");
+
+    // A LVGL CLICK event normally occurs after release, but explicitly
+    // verifying release protects us from immediately waking ourselves.
+    if (!NRFSleep::waitForTouchRelease())
+    {
+        Serial.println("[Sleep] Touch never released - sleep cancelled");
+        return;
+    }
+
+    // Kill the visible backlight immediately.
+    NRFSleep::backlightOff();
+
+#if defined(USE_ARDUINO_GFX_LIBRARY)
+    // The RoundDisplay library exposes the global Arduino_GFX *gfx.
+    //
+    // For GC9A01 this sends the SLPIN command and waits for the panel
+    // controller to enter its sleep state.
+    gfx->displayOff();
+#endif
+
+    Serial.println("[Sleep] Entering nRF52840 SYSTEMOFF");
+
+    // Does not return.
+    NRFSleep::systemOffNow();
+}
+
+
+static void sleepButtonEvent(lv_event_t* e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED)
+        return;
+
+    enterDeepSleep();
+}
+
+
+static void cancelSleepButtonEvent(lv_event_t* e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED)
+        return;
+
+    Serial.println("[Sleep] Cancelled");
+    closeSleepPrompt();
+}
+
+
+static void showSleepPrompt()
+{
+    if (sleepPromptVisible)
+        return;
+
+    sleepPromptVisible = true;
+
+    // Full-screen modal container.
+    sleepPrompt = lv_obj_create(lv_scr_act());
+
+    lv_obj_set_size(sleepPrompt, SCREEN_WIDTH, SCREEN_HEIGHT);
+    lv_obj_set_pos(sleepPrompt, 0, 0);
+
+    lv_obj_set_style_bg_color(
+        sleepPrompt,
+        lv_color_make(8, 8, 12),
+        0
+    );
+
+    lv_obj_set_style_bg_opa(sleepPrompt, LV_OPA_95, 0);
+    lv_obj_set_style_border_width(sleepPrompt, 0, 0);
+    lv_obj_set_style_radius(sleepPrompt, 0, 0);
+    lv_obj_set_style_pad_all(sleepPrompt, 0, 0);
+
+    lv_obj_clear_flag(sleepPrompt, LV_OBJ_FLAG_SCROLLABLE);
+
+
+    // Title
+    lv_obj_t* title = lv_label_create(sleepPrompt);
+    lv_label_set_text(title, "Sleep?");
+    lv_obj_set_style_text_color(title, lv_color_white(), 0);
+    lv_obj_align(title, LV_ALIGN_CENTER, 0, -60);
+
+
+    // Small instruction
+    lv_obj_t* instruction = lv_label_create(sleepPrompt);
+    lv_label_set_text(instruction, "Hold screen 6 sec to wake");
+    lv_obj_set_style_text_color(
+        instruction,
+        lv_color_make(180, 180, 180),
+        0
+    );
+    lv_obj_align(instruction, LV_ALIGN_CENTER, 0, -35);
+
+
+    // SLEEP button
+    lv_obj_t* sleepButton = lv_btn_create(sleepPrompt);
+    lv_obj_set_size(sleepButton, 120, 52);
+    lv_obj_align(sleepButton, LV_ALIGN_CENTER, 0, 20);
+
+    lv_obj_t* sleepLabel = lv_label_create(sleepButton);
+    lv_label_set_text(sleepLabel, "SLEEP");
+    lv_obj_center(sleepLabel);
+
+    lv_obj_add_event_cb(
+        sleepButton,
+        sleepButtonEvent,
+        LV_EVENT_CLICKED,
+        nullptr
+    );
+
+
+    // CANCEL button
+    lv_obj_t* cancelButton = lv_btn_create(sleepPrompt);
+    lv_obj_set_size(cancelButton, 90, 36);
+    lv_obj_align(cancelButton, LV_ALIGN_CENTER, 0, 75);
+
+    lv_obj_t* cancelLabel = lv_label_create(cancelButton);
+    lv_label_set_text(cancelLabel, "CANCEL");
+    lv_obj_center(cancelLabel);
+
+    lv_obj_add_event_cb(
+        cancelButton,
+        cancelSleepButtonEvent,
+        LV_EVENT_CLICKED,
+        nullptr
+    );
+}
+
 void setup() {
+
+    NRFSleep::gateWakeHoldIfNeeded();
+
     Serial.begin(115200);
 
     Wire.begin();
@@ -141,6 +296,7 @@ void setup() {
 
     lv_init();
     lv_xiao_disp_init();
+    lv_xiao_touch_init();
     // Use pin noise for random number generation
     randomSeed(analogRead(A0));
 
@@ -157,7 +313,6 @@ void setup() {
     lv_obj_align(gGestureLabel, LV_ALIGN_TOP_MID, 0, 4);
 
     // Initialize the IMU
-    imu.begin();
     if (!imu.begin()) {
         Serial.println("IMU failed to init");
     }
@@ -187,6 +342,13 @@ void setup() {
 }
 
 void loop() {
+
+    if (sleepPromptVisible){
+        lv_timer_handler();
+        delay(5);
+        return;
+    }
+
     float roll = 0.0f, pitch = 0.0f;
 
     // Check if 60 seconds have passed since the last update
@@ -229,9 +391,8 @@ void loop() {
                     break;
 
                 case 1: // sleep
-                    Serial.println("tToggle animate");
-                    animateMaze = !animateMaze;
-                    Serial.println(animateMaze ? "ON" : "OFF");
+                    Serial.println("Sleep gesture recognized");
+                    showSleepPrompt();
                     break;
 
                 case 2: // circle
